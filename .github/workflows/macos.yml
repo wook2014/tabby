@@ -8,9 +8,6 @@ jobs:
         include:
           - arch: x86_64
             electron_setup_cmd: 'true'
-          - arch: arm64
-            electron_setup_cmd: 'yarn add -D electron@11.1.1'
-
     steps:
     - name: Checkout
       uses: actions/checkout@v1
