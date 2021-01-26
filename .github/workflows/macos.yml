@@ -22,6 +22,7 @@ jobs:
 
     - name: Install deps
       run: |
+        sudo xcode-select -s "/Applications/Xcode_12.2.app"
         sudo npm i -g yarn@1.22.1
         cd app
         yarn
