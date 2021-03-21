@@ -62,8 +62,8 @@ export class PTYProxy {
         ipcRenderer.on(key, newHandler)
     }
 
-    ackData (): void {
-        ipcRenderer.send('pty:ack-data', this.id)
+    ackData (length: number): void {
+        ipcRenderer.send('pty:ack-data', this.id, length)
     }
 
     unsubscribeAll (): void {
@@ -146,7 +146,7 @@ export abstract class BaseSession {
 
 /** @hidden */
 export class Session extends BaseSession {
-    private pty: PTYProxy
+    private pty: PTYProxy|null = null
     private pauseAfterExit = false
     private guessedCWD: string|null = null
     private reportedCWD: string
@@ -225,7 +225,7 @@ export class Session extends BaseSession {
         this.open = true
 
         this.pty.subscribe('data-buffered', (array: Uint8Array) => {
-            this.pty.ackData()
+            this.pty!.ackData(array.length)
 
             let data = Buffer.from(array)
             data = this.processOSC1337(data)
@@ -253,21 +253,21 @@ export class Session extends BaseSession {
 
         this.pauseAfterExit = options.pauseAfterExit ?? false
 
-        this.destroyed$.subscribe(() => this.pty.unsubscribeAll())
+        this.destroyed$.subscribe(() => this.pty!.unsubscribeAll())
     }
 
-    getPTYID (): string {
-        return this.pty.getPTYID()
+    getPTYID (): string|null {
+        return this.pty?.getPTYID() ?? null
     }
 
     resize (columns: number, rows: number): void {
-        this.pty.resize(columns, rows)
+        this.pty?.resize(columns, rows)
     }
 
     write (data: Buffer): void {
         if (this.open) {
-            this.pty.write(data)
-            // if (this.pty._writable) {
+            this.pty?.write(data)
+            // TODO if (this.pty._writable) {
             // } else {
             //     this.destroy()
             // }
@@ -275,7 +275,7 @@ export class Session extends BaseSession {
     }
 
     kill (signal?: string): void {
-        this.pty.kill(signal)
+        this.pty?.kill(signal)
     }
 
     async getChildProcesses (): Promise<ChildProcess[]> {
@@ -319,7 +319,7 @@ export class Session extends BaseSession {
                 this.kill('SIGTERM')
                 setImmediate(() => {
                     try {
-                        process.kill(this.pty.getPID(), 0)
+                        process.kill(this.pty!.getPID(), 0)
                         // still alive
                         setTimeout(() => {
                             this.kill('SIGKILL')

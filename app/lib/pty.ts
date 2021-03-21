@@ -3,11 +3,11 @@ import { v4 as uuidv4 } from 'uuid'
 import { ipcMain } from 'electron'
 import { Application } from './app'
 
-
 class PTYDataQueue {
     private buffers: Buffer[] = []
     private delta = 0
-    private maxDelta = 3
+    private maxDelta = 1000
+    private maxChunk = 1024
     private flowPaused = false
 
     constructor (private pty: nodePTY.IPty, private onData: (data: Buffer) => void) { }
@@ -17,8 +17,8 @@ class PTYDataQueue {
         this.maybeEmit()
     }
 
-    ack () {
-        this.delta--
+    ack (length: number) {
+        this.delta -= length
         this.maybeEmit()
     }
 
@@ -32,20 +32,28 @@ class PTYDataQueue {
                 this.pause()
                 return
             }
-            this.onData(Buffer.concat(this.buffers))
-            this.delta++
+
+            const buffersToSend = []
+            let totalLength = 0
+            while (totalLength < this.maxChunk && this.buffers.length) {
+                totalLength += this.buffers[0].length
+                buffersToSend.push(this.buffers.shift())
+            }
+            let toSend = Buffer.concat(buffersToSend)
+            this.buffers.unshift(toSend.slice(this.maxChunk))
+            toSend = toSend.slice(0, this.maxChunk)
+            this.onData(toSend)
+            this.delta += toSend.length
             this.buffers = []
         }
     }
 
     private pause () {
-        console.log('paused')
         this.pty.pause()
         this.flowPaused = true
     }
 
     private resume () {
-        console.log('resumed')
         this.pty.resume()
         this.flowPaused = false
         this.maybeEmit()
@@ -63,7 +71,7 @@ export class PTY {
         }
 
         this.outputQueue = new PTYDataQueue(this.pty, data => {
-            this.emit('data-buffered', data)
+            setImmediate(() => this.emit('data-buffered', data))
         })
 
         this.pty.on('data', data => this.outputQueue.push(Buffer.from(data)))
@@ -85,8 +93,8 @@ export class PTY {
         }
     }
 
-    ackData (): void {
-        this.outputQueue.ack()
+    ackData (length: number): void {
+        this.outputQueue.ack(length)
     }
 
     kill (signal?: string): void {
@@ -129,8 +137,8 @@ export class PTYManager {
             this.ptys[id].kill(signal)
         })
 
-        ipcMain.on('pty:ack-data', (_event, id) => {
-            this.ptys[id].ackData()
+        ipcMain.on('pty:ack-data', (_event, id, length) => {
+            this.ptys[id].ackData(length)
         })
     }
 }
