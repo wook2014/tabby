@@ -505,6 +505,9 @@ export class SplitTabComponent extends BaseTabComponent implements AfterViewInit
         if (tab.title) {
             this.setTitle(tab.title)
         }
+        tab.recoveryStateChangedHint$.subscribe(() => {
+            this.recoveryStateChangedHint.next()
+        })
         tab.destroyed$.subscribe(() => {
             this.removeTab(tab)
         })
