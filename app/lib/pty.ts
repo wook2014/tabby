@@ -6,8 +6,8 @@ import { Application } from './app'
 class PTYDataQueue {
     private buffers: Buffer[] = []
     private delta = 0
-    private maxDelta = 1000
     private maxChunk = 1024
+    private maxDelta = 1024 * 50
     private flowPaused = false
 
     constructor (private pty: nodePTY.IPty, private onData: (data: Buffer) => void) { }

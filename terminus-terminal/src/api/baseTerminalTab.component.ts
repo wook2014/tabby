@@ -600,10 +600,8 @@ export class BaseTerminalTabComponent extends BaseTabComponent implements OnInit
         // this.session.output$.bufferTime(10).subscribe((datas) => {
         this.attachSessionHandler(this.session.output$.subscribe(data => {
             if (this.enablePassthrough) {
-                this.zone.run(() => {
-                    this.output.next(data)
-                    this.write(data)
-                })
+                this.output.next(data)
+                this.write(data)
             }
         }))
 
